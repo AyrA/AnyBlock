@@ -102,13 +102,23 @@ namespace AnyBlock
                         }
                     }
                 }
+                else
+                {
+                    if (args[0].ToLower() == "/add")
+                    {
+                        foreach (var Arg in args.Skip(1))
+                        {
+
+                        }
+                    }
+                }
             }
             return ERR.SUCCESS;
         }
 
         private static void ShowHelp()
         {
-            Console.Error.WriteLine(@"AnyBlock.exe [/config | /add entry [...] | /remove entry [...] | /apply | /list]
+            Console.Error.WriteLine(@"AnyBlock.exe [/clear | /config | /add range [...] | /remove name [...] | /apply | /list]
 Blocks IP ranges in the Windows Firewall
 
 Shows a graphical Configuration Window if no Arguments are specified.
@@ -117,19 +127,26 @@ Shows a graphical Configuration Window if no Arguments are specified.
 /add     - Adds the specified Range(s) to the List
 /remove  - Removes the specified Range(s) from the List
 /apply   - Applies List to Firewall Rules
-/list    - Lists all available Ranges
 /clear   - Removes all AnyBlock Rules
+/list    - Lists all available Ranges
 
+/add
 A range is formatted as dir:name
-dir is the direction and can be IN,OUT,BOTH,DISABLED
-name is the fully qualified node name.
-
+- dir is the direction and can be IN,OUT,BOTH,DISABLED
+- name is the fully qualified node name.
 Disabled entries are not processed.
 It's not necessary to disable an entry to delete it.
-
 To change an existing entry, you can add it again using a different direction.
+
+
+/remove
+Removing rules from the list is done by name only
+
+/apply
 Applying the List will remove all blocked IPs that are no longer in the
-current List of Addresses.");
+current List of Addresses.
+To get most out of this command, schedule this as a Task to be run every
+24 Hours.");
         }
 
         private static void ShowConfigForm()
