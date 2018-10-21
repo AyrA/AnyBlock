@@ -68,31 +68,38 @@ namespace AnyBlock
             }
             else
             {
-                if (args.Length == 1 && args[0].ToLower() == "/apply")
+                if (args.Length == 1)
                 {
-                    try
+                    if (args[0].ToLower() == "/apply")
+                    {
+                        try
+                        {
+                            Firewall.ClearRules();
+                            Firewall.BlockRanges(Cache.SelectedRanges);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine("Error: {0}", ex.Message);
+                            return ERR.RULE_ERROR;
+                        }
+                    }
+                    if (args[0].ToLower() == "/clear")
                     {
                         Firewall.ClearRules();
-                        Firewall.BlockRanges(Cache.SelectedRanges);
                     }
-                    catch (Exception ex)
+                    if (args[0].ToLower() == "/config")
                     {
-                        Console.Error.WriteLine("Error: {0}", ex.Message);
-                        return ERR.RULE_ERROR;
+                        foreach (var R in Cache.SelectedRanges)
+                        {
+                            Console.Error.WriteLine(R.ToString().Replace(" ", ""));
+                        }
                     }
-                }
-                if (args.Length == 1 && args[0].ToLower() == "/config")
-                {
-                    foreach (var R in Cache.SelectedRanges)
+                    if (args[0].ToLower() == "/list")
                     {
-                        Console.Error.WriteLine(R.ToString().Replace(" ", ""));
-                    }
-                }
-                if (args.Length == 1 && args[0].ToLower() == "/list")
-                {
-                    foreach (var E in Cache.ValidEntries)
-                    {
-                        Console.Error.WriteLine(E);
+                        foreach (var E in Cache.ValidEntries)
+                        {
+                            Console.Error.WriteLine(E);
+                        }
                     }
                 }
             }
@@ -111,12 +118,18 @@ Shows a graphical Configuration Window if no Arguments are specified.
 /remove  - Removes the specified Range(s) from the List
 /apply   - Applies List to Firewall Rules
 /list    - Lists all available Ranges
+/clear   - Removes all AnyBlock Rules
 
 A range is formatted as dir:name
-dir is the direction and can be IN,OUT,BOTH
+dir is the direction and can be IN,OUT,BOTH,DISABLED
 name is the fully qualified node name.
 
-To change an existing entry, you can add it again using a new direction.");
+Disabled entries are not processed.
+It's not necessary to disable an entry to delete it.
+
+To change an existing entry, you can add it again using a different direction.
+Applying the List will remove all blocked IPs that are no longer in the
+current List of Addresses.");
         }
 
         private static void ShowConfigForm()
