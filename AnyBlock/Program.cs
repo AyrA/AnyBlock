@@ -26,10 +26,15 @@ namespace AnyBlock
             /// </summary>
             public const int RULE_ERROR = 2;
             /// <summary>
+            /// Error parsing Arguments
+            /// </summary>
+            public const int ARGS = 3;
+            /// <summary>
             /// Help shown
             /// </summary>
             public const int HELP = 0xFF;
         }
+
         [STAThread]
         static int Main(string[] args)
         {
@@ -92,19 +97,37 @@ namespace AnyBlock
                     {
                         foreach (var R in Cache.SelectedRanges)
                         {
-                            Console.Error.WriteLine(R.ToString().Replace(" ", ""));
+                            Console.WriteLine(R.ToString().Replace(" ", ""));
                         }
                     }
                     if (args[0].ToLower() == "/list")
                     {
                         foreach (var E in Cache.ValidEntries)
                         {
-                            Console.Error.WriteLine(E);
+                            Console.WriteLine(E);
                         }
                     }
                 }
                 else
                 {
+                    if (args[0].ToLower() == "/remove")
+                    {
+                        var Cached = Cache.SelectedRanges;
+                        foreach(var Arg in args.Skip(1))
+                        {
+                            if(Cached.Any(m => m.Name == Arg))
+                            {
+                                Cached = Cached.Where(m => m.Name != Arg).ToArray();
+                                Console.Error.WriteLine("Range Removed: {0}", Arg);
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine("Range {0} not in current List", Arg);
+                            }
+                        }
+                        Cache.SelectedRanges = Cached;
+                        return ERR.SUCCESS;
+                    }
                     if (args[0].ToLower() == "/add")
                     {
                         var Cached = new List<RangeEntry>(Cache.SelectedRanges);
@@ -141,10 +164,13 @@ namespace AnyBlock
                                 }
                             }
                         }
+                        Cache.SelectedRanges = Cached.ToArray();
+                        return ERR.SUCCESS;
                     }
                 }
             }
-            return ERR.SUCCESS;
+            Console.Error.WriteLine("Invalid Command Line Arguments. Try /?");
+            return ERR.ARGS;
         }
 
         private static void ShowHelp()
