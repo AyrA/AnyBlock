@@ -42,18 +42,19 @@
             this.tvRanges.HideSelection = false;
             this.tvRanges.Location = new System.Drawing.Point(12, 12);
             this.tvRanges.Name = "tvRanges";
-            this.tvRanges.Size = new System.Drawing.Size(370, 449);
+            this.tvRanges.Size = new System.Drawing.Size(293, 449);
             this.tvRanges.TabIndex = 0;
             this.tvRanges.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.tvRanges_AfterCheck);
             // 
             // lbRules
             // 
-            this.lbRules.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
+            this.lbRules.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.lbRules.FormattingEnabled = true;
-            this.lbRules.Location = new System.Drawing.Point(388, 12);
+            this.lbRules.Location = new System.Drawing.Point(311, 12);
             this.lbRules.Name = "lbRules";
-            this.lbRules.Size = new System.Drawing.Size(351, 407);
+            this.lbRules.Size = new System.Drawing.Size(283, 407);
             this.lbRules.TabIndex = 1;
             this.lbRules.SelectedIndexChanged += new System.EventHandler(this.lbRules_SelectedIndexChanged);
             this.lbRules.DoubleClick += new System.EventHandler(this.lbRules_DoubleClick);
@@ -61,7 +62,7 @@
             // btnSave
             // 
             this.btnSave.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnSave.Location = new System.Drawing.Point(665, 438);
+            this.btnSave.Location = new System.Drawing.Point(518, 438);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(75, 23);
             this.btnSave.TabIndex = 2;
@@ -73,7 +74,7 @@
             // 
             this.lblCycle.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.lblCycle.AutoSize = true;
-            this.lblCycle.Location = new System.Drawing.Point(388, 443);
+            this.lblCycle.Location = new System.Drawing.Point(311, 422);
             this.lblCycle.Name = "lblCycle";
             this.lblCycle.Size = new System.Drawing.Size(256, 13);
             this.lblCycle.TabIndex = 3;
@@ -83,11 +84,14 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(752, 473);
+            this.ClientSize = new System.Drawing.Size(605, 473);
             this.Controls.Add(this.lblCycle);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.lbRules);
             this.Controls.Add(this.tvRanges);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
             this.Name = "frmMain";
             this.Text = "Settings";
             this.ResumeLayout(false);
