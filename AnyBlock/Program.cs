@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using WinAPI;
@@ -106,9 +107,39 @@ namespace AnyBlock
                 {
                     if (args[0].ToLower() == "/add")
                     {
+                        var Cached = new List<RangeEntry>(Cache.SelectedRanges);
+
                         foreach (var Arg in args.Skip(1))
                         {
-
+                            if (Arg.Contains(':'))
+                            {
+                                var R = new RangeEntry();
+                                R.Name = Arg.Substring(Arg.IndexOf(':') + 1);
+                                if (Cache.ValidEntry(R.Name))
+                                {
+                                    if (Enum.TryParse(Arg.Split(':')[0], out R.Direction))
+                                    {
+                                        if (Cached.Any(m => m.Name == R.Name))
+                                        {
+                                            Cached = new List<RangeEntry>(Cached.Where(m => m.Name != R.Name).Concat(new RangeEntry[] { R }));
+                                            Console.Error.WriteLine("Updated Range: {0}", R.Name);
+                                        }
+                                        else
+                                        {
+                                            Cached.Add(R);
+                                            Console.Error.WriteLine("Added Range: {0}", R.Name);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.Error.WriteLine("Invalid Direction in {0}", Arg);
+                                    }
+                                }
+                                else
+                                {
+                                    Console.Error.WriteLine("Name {0} is not a valid Range. Use /list to view all", R.Name);
+                                }
+                            }
                         }
                     }
                 }
