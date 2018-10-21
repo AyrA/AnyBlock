@@ -159,7 +159,6 @@ namespace AnyBlock
             var Names = EntryNames.Where(m => ValidEntry(m)).ToArray();
             var Addr = new List<string>();
             Console.Error.WriteLine("Getting all matching Nodes...");
-            //var Nodes = CacheContent.Descendants().Where(m => Names.Contains(m.Path));
             var Nodes = Names
                 .SelectMany(m => CacheContent.SelectToken(m, false))
                 .Where(m => m != null)
