@@ -7,6 +7,9 @@ namespace WinAPI
 {
     public static class Firewall
     {
+        /// <summary>
+        /// Number of Ranges supported in a single Rule
+        /// </summary>
         public const int BLOCKSIZE = 1000;
 
         /// <summary>
@@ -63,6 +66,11 @@ namespace WinAPI
             }
         }
 
+        /// <summary>
+        /// Blocks an IP List into the given Direction
+        /// </summary>
+        /// <param name="IPList">IP List</param>
+        /// <param name="D">Direction</param>
         private static void IpBlock(string[] IPList, Direction D)
         {
             if (D == Direction.DISABLED)

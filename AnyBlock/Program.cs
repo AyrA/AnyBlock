@@ -7,10 +7,26 @@ namespace AnyBlock
 {
     class Program
     {
+        /// <summary>
+        /// Exit Codes
+        /// </summary>
         private struct ERR
         {
+            /// <summary>
+            /// Success
+            /// </summary>
             public const int SUCCESS = 0;
+            /// <summary>
+            /// Problem downloading Cache
+            /// </summary>
             public const int DOWNLOAD = SUCCESS + 1;
+            /// <summary>
+            /// Problem applying Rules
+            /// </summary>
+            public const int RULE_ERROR = 2;
+            /// <summary>
+            /// Help shown
+            /// </summary>
             public const int HELP = 0xFF;
         }
         [STAThread]
@@ -54,8 +70,16 @@ namespace AnyBlock
             {
                 if (args.Length == 1 && args[0].ToLower() == "/apply")
                 {
-                    Firewall.ClearRules();
-                    Firewall.BlockRanges(Cache.SelectedRanges);
+                    try
+                    {
+                        Firewall.ClearRules();
+                        Firewall.BlockRanges(Cache.SelectedRanges);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("Error: {0}", ex.Message);
+                        return ERR.RULE_ERROR;
+                    }
                 }
                 if (args.Length == 1 && args[0].ToLower() == "/config")
                 {
