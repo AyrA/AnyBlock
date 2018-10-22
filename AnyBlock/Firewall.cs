@@ -39,10 +39,8 @@ namespace WinAPI
                 .ToArray();
             foreach (var Rule in Rules)
             {
-                Console.Error.Write('.');
                 Policy.Rules.Remove(Rule);
             }
-            Console.Error.WriteLine();
         }
 
         /// <summary>
@@ -87,7 +85,6 @@ namespace WinAPI
                 var Policy = GetPolicy();
                 for (var IpCount = 0; IpCount < IPList.Length; IpCount += BLOCKSIZE)
                 {
-                    Console.Error.Write('.');
                     var R = (INetFwRule2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwRule"));
 
                     R.Name = $"{BLOCK}.{D}.{(IpCount + BLOCKSIZE) / BLOCKSIZE}";
@@ -102,7 +99,6 @@ namespace WinAPI
                     R.RemoteAddresses = string.Join(",", IPList.Skip(IpCount).Take(BLOCKSIZE).ToArray());
                     Policy.Rules.Add(R);
                 }
-                Console.Error.WriteLine();
             }
         }
     }

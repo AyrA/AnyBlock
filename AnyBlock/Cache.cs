@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using static AnyBlock.Logger;
 
 namespace AnyBlock
 {
@@ -155,10 +156,10 @@ namespace AnyBlock
 
         public static string[] GetAddresses(IEnumerable<string> EntryNames)
         {
-            Console.Error.WriteLine("Validating Names...");
+            Debug("Validating Names...");
             var Names = EntryNames.Where(m => ValidEntry(m)).ToArray();
             var Addr = new List<string>();
-            Console.Error.WriteLine("Getting all matching Nodes...");
+            Debug("Getting all matching Nodes...");
             var Nodes = Names
                 .SelectMany(m => CacheContent.SelectToken(m, false))
                 .Where(m => m != null)
@@ -168,7 +169,7 @@ namespace AnyBlock
                 string[] Values = new string[0];
                 if (Node is JProperty)
                 {
-                    Console.Error.WriteLine("Processing {0}...", Node.Path);
+                    Debug("Processing {0}...", Node.Path);
                     var Prop = (JProperty)Node;
                     Values = Prop.Descendants()
                         .OfType<JValue>()

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using WinAPI;
+using static AnyBlock.Logger;
 
 namespace AnyBlock
 {
@@ -38,32 +39,37 @@ namespace AnyBlock
         [STAThread]
         static int Main(string[] args)
         {
+            //Handle "/v" Argument
+            Verbose = args.Any(m => m.ToLower() == "/v");
+            args = args.Where(m => m.ToLower() != "/v").ToArray();
+
             if (!Cache.HasCache)
             {
-                Console.Error.WriteLine("Cache not found. Obtaining now");
+                Debug("Cache not found. Obtaining now");
                 if (!Cache.DownloadCache())
                 {
-                    Console.Error.WriteLine("Unable to obtain cache");
+                    Log("Unable to obtain cache");
                     return ERR.DOWNLOAD;
                 }
             }
             else if (!Cache.CacheRecent)
             {
-                Console.Error.WriteLine("Cache not recent. Obtaining now");
+                Debug("Cache not recent. Obtaining now");
                 if (!Cache.DownloadCache())
                 {
-                    Console.Error.WriteLine("Unable to obtain cache");
+                    Log("Unable to obtain cache");
                     return ERR.DOWNLOAD;
                 }
             }
             else
             {
-                Console.Error.WriteLine("Cache found and recent. Using existing");
+                Debug("Cache found and recent. Using existing");
             }
 
             //TODO: Command line argument processing here
             if (args.Length == 0)
             {
+                Debug("No Command Line Arguments. Starting GUI");
                 ShowConfigForm();
                 return ERR.SUCCESS;
             }
@@ -78,6 +84,7 @@ namespace AnyBlock
                 {
                     if (args[0].ToLower() == "/apply")
                     {
+                        Log("Applying Firewall Rules...");
                         try
                         {
                             Firewall.ClearRules();
@@ -85,13 +92,16 @@ namespace AnyBlock
                         }
                         catch (Exception ex)
                         {
-                            Console.Error.WriteLine("Error: {0}", ex.Message);
+                            Log("Error: {0}", ex.Message);
                             return ERR.RULE_ERROR;
                         }
+                        return ERR.SUCCESS;
                     }
                     if (args[0].ToLower() == "/clear")
                     {
+                        Log("Clearing Firewall Rules...");
                         Firewall.ClearRules();
+                        return ERR.SUCCESS;
                     }
                     if (args[0].ToLower() == "/config")
                     {
@@ -99,6 +109,7 @@ namespace AnyBlock
                         {
                             Console.WriteLine(R.ToString().Replace(" ", ""));
                         }
+                        return ERR.SUCCESS;
                     }
                     if (args[0].ToLower() == "/list")
                     {
@@ -106,6 +117,7 @@ namespace AnyBlock
                         {
                             Console.WriteLine(E);
                         }
+                        return ERR.SUCCESS;
                     }
                 }
                 else
@@ -118,11 +130,11 @@ namespace AnyBlock
                             if(Cached.Any(m => m.Name == Arg))
                             {
                                 Cached = Cached.Where(m => m.Name != Arg).ToArray();
-                                Console.Error.WriteLine("Range Removed: {0}", Arg);
+                                Log("Range Removed: {0}", Arg);
                             }
                             else
                             {
-                                Console.Error.WriteLine("Range {0} not in current List", Arg);
+                                Log("Range {0} not in current List", Arg);
                             }
                         }
                         Cache.SelectedRanges = Cached;
@@ -145,22 +157,22 @@ namespace AnyBlock
                                         if (Cached.Any(m => m.Name == R.Name))
                                         {
                                             Cached = new List<RangeEntry>(Cached.Where(m => m.Name != R.Name).Concat(new RangeEntry[] { R }));
-                                            Console.Error.WriteLine("Updated Range: {0}", R.Name);
+                                            Log("Updated Range: {0}", R.Name);
                                         }
                                         else
                                         {
                                             Cached.Add(R);
-                                            Console.Error.WriteLine("Added Range: {0}", R.Name);
+                                            Log("Added Range: {0}", R.Name);
                                         }
                                     }
                                     else
                                     {
-                                        Console.Error.WriteLine("Invalid Direction in {0}", Arg);
+                                        Log("Invalid Direction in {0}", Arg);
                                     }
                                 }
                                 else
                                 {
-                                    Console.Error.WriteLine("Name {0} is not a valid Range. Use /list to view all", R.Name);
+                                    Log("Name {0} is not a valid Range. Use /list to view all", R.Name);
                                 }
                             }
                         }
@@ -169,17 +181,18 @@ namespace AnyBlock
                     }
                 }
             }
-            Console.Error.WriteLine("Invalid Command Line Arguments. Try /?");
+            Log("Invalid Command Line Arguments. Try /?");
             return ERR.ARGS;
         }
 
         private static void ShowHelp()
         {
-            Console.Error.WriteLine(@"AnyBlock.exe [/clear | /config | /add range [...] | /remove name [...] | /apply | /list]
+            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add range [...] | /remove name [...] | /apply | /list]
 Blocks IP ranges in the Windows Firewall
 
 Shows a graphical Configuration Window if no Arguments are specified.
 
+/v       - Verbose Logging to console
 /config  - Show currently configured Ranges
 /add     - Adds the specified Range(s) to the List
 /remove  - Removes the specified Range(s) from the List
@@ -208,10 +221,14 @@ To get most out of this command, schedule this as a Task to be run every
 
         private static void ShowConfigForm()
         {
-            NativeMethods.FreeConsole();
+            if (!Verbose)
+            {
+                NativeMethods.FreeConsole();
+            }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new frmMain());
+            Debug("Form Closed");
         }
     }
 }

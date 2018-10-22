@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using System;
+using static AnyBlock.Logger;
 
 namespace AnyBlock
 {
@@ -24,6 +25,7 @@ namespace AnyBlock
 
         private void FillList(JObject Data)
         {
+            Debug("Filling Tree List view Nodes");
             Suspended = true;
             tvRanges.Nodes.Clear();
             var Ranges = Cache.SelectedRanges;
@@ -32,6 +34,7 @@ namespace AnyBlock
                 var Node = tvRanges.Nodes.Add(Prop.Name);
                 Node.Name = Prop.Name;
                 Node.Checked = Ranges.Any(m => m.Name == Prop.Name);
+                Debug(Node.FullPath);
                 SetCategories(Node, Prop, Ranges);
                 Node.Expand();
             }
@@ -44,6 +47,7 @@ namespace AnyBlock
             {
                 var CatNode = Node.Nodes.Add(Cat.Name);
                 CatNode.Name = Cat.Name;
+                Debug(CatNode.FullPath);
                 CatNode.Checked = Selected.Any(m => m.Name == $"{Node.Name}.{Cat.Name}");
                 SetEntries(CatNode, Cat, Selected);
             }
@@ -56,6 +60,7 @@ namespace AnyBlock
                 var Node = CatNode.Nodes.Add(Prop.Name);
                 Node.Tag = Prop.Value;
                 Node.Name = Prop.Name;
+                Debug(Node.FullPath);
                 Node.Checked = Selected.Any(m => m.Name == $"{CatNode.Parent.Name}.{Cat.Name}.{Node.Name}");
             }
         }
@@ -67,6 +72,7 @@ namespace AnyBlock
                 if (N.Checked)
                 {
                     var FullName = N.FullPath.Replace('\\', '.');
+                    Debug($"Adding Rule: {FullName}");
                     if (CurrentRanges.Any(m => m.Name == FullName))
                     {
                         lbRules.Items.Add(CurrentRanges.First(m => m.Name == FullName));
