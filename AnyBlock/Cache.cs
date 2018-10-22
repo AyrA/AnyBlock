@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using WinAPI.NET;
 using static AnyBlock.Logger;
 
 namespace AnyBlock
@@ -20,15 +21,6 @@ namespace AnyBlock
         {
             return $"{Direction}: {Name}";
         }
-    }
-
-    [Flags]
-    public enum Direction
-    {
-        DISABLED = 0,
-        IN = 1,
-        OUT = 2,
-        BOTH = IN | OUT
     }
     public static class Cache
     {

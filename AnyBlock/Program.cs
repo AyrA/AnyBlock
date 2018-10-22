@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using WinAPI;
+using WinAPI.NET;
 using static AnyBlock.Logger;
 
 namespace AnyBlock
@@ -66,7 +66,6 @@ namespace AnyBlock
                 Debug("Cache found and recent. Using existing");
             }
 
-            //TODO: Command line argument processing here
             if (args.Length == 0)
             {
                 Debug("No Command Line Arguments. Starting GUI");
@@ -87,8 +86,15 @@ namespace AnyBlock
                         Log("Applying Firewall Rules...");
                         try
                         {
+                            var FWRanges = Cache.SelectedRanges
+                                .Select(m => new RangeSet()
+                                {
+                                    Direction = m.Direction,
+                                    Ranges = Cache.GetAddresses(m.Name).Select(n => new CIDR(n)).ToArray()
+                                })
+                                .ToArray();
                             Firewall.ClearRules();
-                            Firewall.BlockRanges(Cache.SelectedRanges);
+                            Firewall.BlockRanges(FWRanges);
                         }
                         catch (Exception ex)
                         {
@@ -125,9 +131,9 @@ namespace AnyBlock
                     if (args[0].ToLower() == "/remove")
                     {
                         var Cached = Cache.SelectedRanges;
-                        foreach(var Arg in args.Skip(1))
+                        foreach (var Arg in args.Skip(1))
                         {
-                            if(Cached.Any(m => m.Name == Arg))
+                            if (Cached.Any(m => m.Name == Arg))
                             {
                                 Cached = Cached.Where(m => m.Name != Arg).ToArray();
                                 Log("Range Removed: {0}", Arg);

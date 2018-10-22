@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System;
 using static AnyBlock.Logger;
+using WinAPI.NET;
 
 namespace AnyBlock
 {
