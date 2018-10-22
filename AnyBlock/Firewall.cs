@@ -42,7 +42,7 @@ namespace WinAPI.NET
         }
 
         /// <summary>
-        /// Removes all Rules
+        /// Removes all Rules with the current Prefix
         /// </summary>
         public static void ClearRules()
         {
@@ -56,6 +56,49 @@ namespace WinAPI.NET
             {
                 Policy.Rules.Remove(Rule);
             }
+        }
+
+        /// <summary>
+        /// Gets all Addresses for a specific Direction
+        /// </summary>
+        /// <param name="D">Direction</param>
+        /// <returns>Addresses</returns>
+        public static CIDR[] GetBlockedAddresses(Direction D)
+        {
+            if (D == Direction.DISABLED)
+            {
+                return null;
+            }
+            if (D == Direction.BOTH)
+            {
+                return GetBlockedAddresses(Direction.IN).Concat(GetBlockedAddresses(Direction.OUT)).ToArray();
+            }
+            var Policy = GetPolicy();
+            return Policy.Rules
+                .Cast<INetFwRule2>()
+                .Where(m => m.Name.StartsWith($"{RulePrefix}.{D}.") && m.Direction == (D == Direction.IN ? NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN : NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_OUT))
+                .SelectMany(m => m.RemoteAddresses.Split(',').Select(n => new CIDR(n)))
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Gets all Addresses in current Inbound and Outbound Rules
+        /// </summary>
+        /// <returns><see cref="RangeSet"/> Array with exactly two Entries, <see cref="Direction.IN"/> and <see cref="Direction.OUT"/></returns>
+        public static RangeSet[] GetAllRules()
+        {
+            return new RangeSet[] {
+                new RangeSet()
+                {
+                    Direction = Direction.IN,
+                    Ranges = GetBlockedAddresses(Direction.IN)
+                },
+                new RangeSet()
+                {
+                    Direction = Direction.OUT,
+                    Ranges = GetBlockedAddresses(Direction.OUT)
+                }
+            };
         }
 
         /// <summary>
