@@ -7,6 +7,9 @@ using System.Reflection;
 
 namespace WinAPI.NET
 {
+    /// <summary>
+    /// Provides easy Handling of Firewall Rules
+    /// </summary>
     public static class Firewall
     {
         /// <summary>
