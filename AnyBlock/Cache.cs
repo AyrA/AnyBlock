@@ -2,26 +2,61 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
 using WinAPI.NET;
 using static AnyBlock.Logger;
 
 namespace AnyBlock
 {
+    public delegate void DownloadStatusHandler(DownloadStatusEventArgs e);
+
+    public class DownloadStatusEventArgs
+    {
+        public long BytesLoaded { get; private set; }
+        public long BytesTotal { get; private set; }
+        public bool CanCalculate { get; private set; }
+        public double Percentage
+        {
+            get
+            {
+                return CanCalculate ? BytesLoaded * 100.0 / BytesTotal : -1.0;
+            }
+        }
+        public bool Cancel { get; set; }
+        public bool Complete { get; private set; }
+        public Exception Error { get; private set; }
+
+        public DownloadStatusEventArgs(long BytesTotal, Exception Error)
+        {
+            CanCalculate = Complete = true;
+            this.Error = Error;
+            BytesLoaded = this.BytesTotal = BytesTotal;
+        }
+
+        public DownloadStatusEventArgs(long BytesLoaded, long BytesTotal)
+        {
+            this.BytesLoaded = BytesLoaded;
+            this.BytesTotal = BytesTotal;
+            CanCalculate = BytesTotal >= 0;
+        }
+    }
+
     public struct RangeEntry
     {
-        public string Name;
+        public string[] Segments;
         public Direction Direction;
 
         public override string ToString()
         {
-            return $"{Direction}: {Name}";
+            var N = string.Join(" --> ", Segments);
+            return $"{Direction}: {N}";
         }
     }
+
     public static class Cache
     {
         public static readonly string CacheFile;
@@ -32,7 +67,7 @@ namespace AnyBlock
         {
             get
             {
-                return File.Exists(CacheFile);
+                return File.Exists(CacheFile) && CacheSize > 0;
             }
         }
 
@@ -41,6 +76,19 @@ namespace AnyBlock
             get
             {
                 return HasCache && File.GetLastWriteTimeUtc(CacheFile) > DateTime.UtcNow.AddDays(-1);
+            }
+        }
+
+        private static long CacheSize
+        {
+            get
+            {
+                var FI = new FileInfo(CacheFile);
+                if (FI.Exists)
+                {
+                    return FI.Length;
+                }
+                throw new FileNotFoundException("Cache does not exist yet", CacheFile);
             }
         }
 
@@ -58,7 +106,7 @@ namespace AnyBlock
             }
             set
             {
-                File.WriteAllText(SettingsFile, JsonConvert.SerializeObject(value.Where(m => ValidEntry(m.Name)).ToArray()));
+                File.WriteAllText(SettingsFile, JsonConvert.SerializeObject(value.Where(m => ValidEntry(m.Segments)).ToArray()));
             }
         }
 
@@ -100,7 +148,7 @@ namespace AnyBlock
             }
         }
 
-        public static bool ValidEntry(string Entry)
+        public static bool ValidEntry(string[] Segments)
         {
             if (HasCache)
             {
@@ -116,7 +164,7 @@ namespace AnyBlock
                     }
                 }
                 var Temp = CacheContent;
-                foreach (var key in Entry.Split('.'))
+                foreach (var key in Segments)
                 {
                     if (Temp != null && Temp[key] != null)
                     {
@@ -141,19 +189,19 @@ namespace AnyBlock
             return false;
         }
 
-        public static string[] GetAddresses(params string[] EntryNames)
+        public static string[] GetAddresses(params RangeEntry[] EntryNames)
         {
             return GetAddresses(EntryNames.AsEnumerable());
         }
 
-        public static string[] GetAddresses(IEnumerable<string> EntryNames)
+        public static string[] GetAddresses(IEnumerable<RangeEntry> EntryNames)
         {
             Debug("Validating Names...");
-            var Names = EntryNames.Where(m => ValidEntry(m)).ToArray();
+            var Names = EntryNames.Where(m => ValidEntry(m.Segments)).ToArray();
             var Addr = new List<string>();
             Debug("Getting all matching Nodes...");
             var Nodes = Names
-                .SelectMany(m => CacheContent.SelectToken(m, false))
+                .SelectMany(m => SelectToken(m.Segments))
                 .Where(m => m != null)
                 .ToArray();
             foreach (var Node in Nodes)
@@ -168,7 +216,7 @@ namespace AnyBlock
                         .Select(m => m.ToString())
                         .ToArray();
                 }
-                else if(Node is JValue)
+                else if (Node is JValue)
                 {
                     Values = new string[] { Node.ToString() };
                 }
@@ -186,28 +234,76 @@ namespace AnyBlock
         {
             if (HasCache)
             {
-                File.SetLastWriteTimeUtc(CacheFile, DateTime.UtcNow.AddDays(-2));
+                try
+                {
+                    File.SetLastWriteTimeUtc(CacheFile, DateTime.UtcNow.AddDays(-2));
+                }
+                catch (Exception exTime)
+                {
+                    try
+                    {
+                        File.Delete(CacheFile);
+                    }
+                    catch (Exception exDel)
+                    {
+                        throw new AggregateException("Unable to invalidate the cache. See inner exceptions for details", exTime, exDel);
+                    }
+                }
                 CacheContent = null;
             }
         }
 
-        public static async Task DownloadCacheAsync()
+        public static void DownloadCacheAsync(DownloadStatusHandler Handler = null)
         {
             if (!CacheRecent)
             {
-                using (var WC = new WebClient())
+                var WC = new DecompressClient();
+                if (Handler != null)
                 {
-                    WC.Headers.Add("User-Agent: AnyBlock/1.0 +https://github.com/AyrA/AnyBlock");
-                    await WC.DownloadFileTaskAsync("https://cable.ayra.ch/ip/global.json", CacheFile);
+                    WC.DownloadProgressChanged += delegate (object sender, DownloadProgressChangedEventArgs e)
+                    {
+                        var Evt = new DownloadStatusEventArgs(e.BytesReceived, e.TotalBytesToReceive);
+                        Handler(Evt);
+                        if (Evt.Cancel)
+                        {
+                            WC.CancelAsync();
+                            WC.Dispose();
+                        }
+                    };
+
+                    WC.DownloadFileCompleted += delegate (object sender, AsyncCompletedEventArgs e)
+                    {
+                        long Size = -1;
+                        try
+                        {
+                            Size = CacheSize;
+                        }
+                        catch
+                        {
+
+                        }
+                        var Evt = new DownloadStatusEventArgs(Size, Size == 0 ? new WebException("Unable to download cache") : e.Error);
+                        Handler(Evt);
+                        WC.Dispose();
+                    };
                 }
+                WC.Headers.Add("User-Agent: AnyBlock/1.0 +https://github.com/AyrA/AnyBlock");
+                WC.DownloadFileAsync(new Uri("https://cable.ayra.ch/ip/global.json"), CacheFile);
             }
         }
 
-        public static bool DownloadCache(int Timeout = System.Threading.Timeout.Infinite)
+        private static JToken[] SelectToken(IEnumerable<string> PathSegments)
         {
-            var T = DownloadCacheAsync();
-            T.Wait(Timeout);
-            return !T.IsFaulted && T.IsCompleted && !T.IsCanceled;
+            var X = (JToken)CacheContent;
+            foreach (var P in PathSegments)
+            {
+                X = X[P];
+                if (X == null)
+                {
+                    return null;
+                }
+            }
+            return X.Children().ToArray();
         }
     }
 }
