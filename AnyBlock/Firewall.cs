@@ -8,44 +8,56 @@ using System.Reflection;
 namespace WinAPI.NET
 {
     /// <summary>
-    /// Provides easy Handling of Firewall Rules
+    /// Provides easy handling of firewall rules
     /// </summary>
     public static class Firewall
     {
         /// <summary>
-        /// Number of Entries supported in a single Rule
+        /// Number of entries supported in a single rule
         /// </summary>
         /// <remarks>
-        /// 1000 is the current Maximum for Windows Firewall. Do not increase further.
-        /// The Firewall limits the number of Entries and not the number of Addresses.
+        /// 1000 is the current maximum for Windows firewall. Do not increase further.
+        /// The firewall limits the number of entries and not the number of addresses.
         /// </remarks>
         public const int BLOCKSIZE = 1000;
 
         /// <summary>
-        /// Rule Name Prefix
+        /// Rule name prefix
         /// </summary>
         /// <remarks>
-        /// Rule adding and removal is based on the assembly Name by default.
-        /// Either chose a distinct but meaningful assembly Name or change this manually at Runtime.
+        /// Rule adding and removal is based on the assembly name by default.
+        /// Either chose a distinct but meaningful assembly name or change this manually at runtime.
         /// </remarks>
         public static string RulePrefix;
 
+        /// <summary>
+        /// Separator to use in JSON names
+        /// </summary>
+        /// <remarks>
+        /// The dot it no longer appropriate since this tool started supporting ASN ranges.
+        /// Make sure no name contains this separator
+        /// </remarks>
+        public const char SEPARATOR = '|';
+
+        /// <summary>
+        /// Static initializer for <see cref="RulePrefix"/>
+        /// </summary>
         static Firewall()
         {
             RulePrefix = Assembly.GetExecutingAssembly().GetName().Name;
         }
 
         /// <summary>
-        /// Gets the Firewall Policy Object
+        /// Gets the firewall policy object
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Firewall policy object</returns>
         private static INetFwPolicy2 GetPolicy()
         {
             return (INetFwPolicy2)Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2"));
         }
 
         /// <summary>
-        /// Removes all Rules with the current Prefix
+        /// Removes all rules with the current prefix
         /// </summary>
         public static void ClearRules()
         {
@@ -85,9 +97,9 @@ namespace WinAPI.NET
         }
 
         /// <summary>
-        /// Gets all Addresses in current Inbound and Outbound Rules
+        /// Gets all addresses in current inbound and outbound rules
         /// </summary>
-        /// <returns><see cref="RangeSet"/> Array with exactly two Entries, <see cref="Direction.IN"/> and <see cref="Direction.OUT"/></returns>
+        /// <returns><see cref="RangeSet"/> array with exactly two entries, <see cref="Direction.IN"/> and <see cref="Direction.OUT"/></returns>
         public static RangeSet[] GetAllRules()
         {
             return new RangeSet[] {
@@ -105,15 +117,11 @@ namespace WinAPI.NET
         }
 
         /// <summary>
-        /// Blocks A Country
+        /// Blocks a range list
         /// </summary>
-        /// <param name="CountryCode">Country Code</param>
-        /// <param name="IPList">IP Address List to Block</param>
-        /// <param name="D">Direction to Block</param>
-        /// <remarks>This first completely unblocks said Country</remarks>
+        /// <param name="Ranges">Range list</param>
         public static void BlockRanges(IEnumerable<RangeSet> Ranges)
         {
-            //.SelectMany(m => Cache.GetAddresses(m.Name)).ToArray();
             var IN = Ranges.Where(m => m.Direction.HasFlag(Direction.IN)).SelectMany(m => m.Ranges);
             var OUT = Ranges.Where(m => m.Direction.HasFlag(Direction.OUT)).SelectMany(m => m.Ranges);
             IpBlock(IN, Direction.IN);
@@ -121,9 +129,9 @@ namespace WinAPI.NET
         }
 
         /// <summary>
-        /// Blocks an IP List into the given Direction
+        /// Blocks an IP list into the given direction
         /// </summary>
-        /// <param name="IPList">IP List</param>
+        /// <param name="IPList">IP list</param>
         /// <param name="D">Direction</param>
         private static void IpBlock(IEnumerable<CIDR> IPList, Direction D)
         {
