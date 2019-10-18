@@ -25,11 +25,11 @@ namespace AnyBlock
             /// <summary>
             /// Problem applying Rules
             /// </summary>
-            public const int RULE_ERROR = 2;
+            public const int RULE_ERROR = DOWNLOAD + 1;
             /// <summary>
             /// Error parsing Arguments
             /// </summary>
-            public const int ARGS = 3;
+            public const int ARGS = RULE_ERROR + 1;
             /// <summary>
             /// Help shown
             /// </summary>
@@ -39,14 +39,17 @@ namespace AnyBlock
         [STAThread]
         static int Main(string[] args)
         {
-            //Handle "/v" Argument
+#if !DEBUG
+            //Handle "/v" Argument. In debug mode, it's always active
             Verbose = args.Any(m => m.ToLower() == "/v");
+#endif
             args = args.Where(m => m.ToLower() != "/v").ToArray();
+
 
             if (!Cache.HasCache)
             {
-                Debug("Cache not found. Obtaining now");
-                if (!Cache.DownloadCache())
+                Log("Cache not found. Obtaining now...");
+                if (!GetCache())
                 {
                     Log("Unable to obtain cache");
                     return ERR.DOWNLOAD;
@@ -54,8 +57,8 @@ namespace AnyBlock
             }
             else if (!Cache.CacheRecent)
             {
-                Debug("Cache not recent. Obtaining now");
-                if (!Cache.DownloadCache())
+                Log("Cache not recent. Obtaining now...");
+                if (!GetCache())
                 {
                     Log("Unable to obtain cache");
                     return ERR.DOWNLOAD;
@@ -83,18 +86,21 @@ namespace AnyBlock
                 {
                     if (args[0].ToLower() == "/apply")
                     {
-                        Log("Applying Firewall Rules...");
+                        Log("Applying firewall Rules...");
                         try
                         {
                             var FWRanges = Cache.SelectedRanges
                                 .Select(m => new RangeSet()
                                 {
                                     Direction = m.Direction,
-                                    Ranges = Cache.GetAddresses(m.Name).Select(n => new CIDR(n)).ToArray()
+                                    Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n)).ToArray()
                                 })
                                 .ToArray();
+                            Debug("Clearing existing firewall rules...");
                             Firewall.ClearRules();
+                            Debug("Adding new rules...");
                             Firewall.BlockRanges(FWRanges);
+                            Log("Blocked {0} ranges", FWRanges.SelectMany(m => m.Ranges).Count());
                         }
                         catch (Exception ex)
                         {
@@ -105,7 +111,7 @@ namespace AnyBlock
                     }
                     if (args[0].ToLower() == "/clear")
                     {
-                        Log("Clearing Firewall Rules...");
+                        Log("Clearing firewall rules...");
                         Firewall.ClearRules();
                         return ERR.SUCCESS;
                     }
@@ -113,7 +119,7 @@ namespace AnyBlock
                     {
                         foreach (var R in Cache.SelectedRanges)
                         {
-                            Console.WriteLine(R.ToString().Replace(" ", ""));
+                            Console.WriteLine(R);
                         }
                         return ERR.SUCCESS;
                     }
@@ -131,17 +137,15 @@ namespace AnyBlock
                     if (args[0].ToLower() == "/remove")
                     {
                         var Cached = Cache.SelectedRanges;
-                        foreach (var Arg in args.Skip(1))
+                        var FullName = args.Skip(1).ToArray();
+                        if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
                         {
-                            if (Cached.Any(m => m.Name == Arg))
-                            {
-                                Cached = Cached.Where(m => m.Name != Arg).ToArray();
-                                Log("Range Removed: {0}", Arg);
-                            }
-                            else
-                            {
-                                Log("Range {0} not in current List", Arg);
-                            }
+                            Cached = Cached.Where(m => m.Segments.SequenceEqual(FullName)).ToArray();
+                            Log("Range Removed: {0}", string.Join(" --> ", FullName));
+                        }
+                        else
+                        {
+                            Log("Range '{0}' not in current List", string.Join(" --> ", FullName));
                         }
                         Cache.SelectedRanges = Cached;
                         return ERR.SUCCESS;
@@ -149,38 +153,41 @@ namespace AnyBlock
                     if (args[0].ToLower() == "/add")
                     {
                         var Cached = new List<RangeEntry>(Cache.SelectedRanges);
-
-                        foreach (var Arg in args.Skip(1))
+                        var FullName = args.Skip(2).ToArray();
+                        var Direction = args.Skip(1).FirstOrDefault();
+                        if (Direction != null)
                         {
-                            if (Arg.Contains(':'))
+                            var R = new RangeEntry();
+                            if (Cache.ValidEntry(FullName))
                             {
-                                var R = new RangeEntry();
-                                R.Name = Arg.Substring(Arg.IndexOf(':') + 1);
-                                if (Cache.ValidEntry(R.Name))
+                                if (Enum.TryParse(Direction, out R.Direction))
                                 {
-                                    if (Enum.TryParse(Arg.Split(':')[0], out R.Direction))
+                                    if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
                                     {
-                                        if (Cached.Any(m => m.Name == R.Name))
-                                        {
-                                            Cached = new List<RangeEntry>(Cached.Where(m => m.Name != R.Name).Concat(new RangeEntry[] { R }));
-                                            Log("Updated Range: {0}", R.Name);
-                                        }
-                                        else
-                                        {
-                                            Cached.Add(R);
-                                            Log("Added Range: {0}", R.Name);
-                                        }
+                                        Cached = new List<RangeEntry>(Cached
+                                            .Where(m => m.Segments.SequenceEqual(FullName))
+                                            .Concat(new RangeEntry[] { R }));
+                                        Log("Updated Range: {0}", string.Join(" --> ", FullName));
                                     }
                                     else
                                     {
-                                        Log("Invalid Direction in {0}", Arg);
+                                        Cached.Add(R);
+                                        Log("Added Range: {0}", string.Join(" --> ", FullName));
                                     }
                                 }
                                 else
                                 {
-                                    Log("Name {0} is not a valid Range. Use /list to view all", R.Name);
+                                    Log("Invalid Direction in {0}", Direction);
                                 }
                             }
+                            else
+                            {
+                                Log("Name {0} is not a valid Range. Use /list to view all", string.Join(" --> ", FullName));
+                            }
+                        }
+                        else
+                        {
+                            Log("No direction specified. Please specify a direction.");
                         }
                         Cache.SelectedRanges = Cached.ToArray();
                         return ERR.SUCCESS;
@@ -191,38 +198,95 @@ namespace AnyBlock
             return ERR.ARGS;
         }
 
+        private static bool GetCache()
+        {
+            var Locker = new object();
+            bool Wait = true;
+            Exception ex = null;
+            Cache.DownloadCacheAsync(delegate (DownloadStatusEventArgs e)
+            {
+                lock (Locker)
+                {
+                    Console.CursorLeft = 0;
+                    if (e.CanCalculate)
+                    {
+                        Console.Write("{0:N1}M/{1:N1}M ({2:N2}%)", e.BytesLoaded / 1e6, e.BytesTotal / 1e6, e.Percentage);
+                    }
+                    else
+                    {
+                        Console.Write("{0:N1}M", e.BytesLoaded / 1e6);
+                    }
+                }
+                if (e.Complete || e.Error != null)
+                {
+                    Console.WriteLine();
+                    ex = e.Error;
+                    Wait = false;
+                }
+            });
+            while (Wait)
+            {
+                System.Threading.Thread.Sleep(100);
+            }
+            return ex == null;
+        }
+
         private static void ShowHelp()
         {
-            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add range [...] | /remove name [...] | /apply | /list]
-Blocks IP ranges in the Windows Firewall
+            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add dir name | /remove name | /apply | /list]
+Blocks IP ranges in the Windows firewall
 
-Shows a graphical Configuration Window if no Arguments are specified.
+Shows a graphical configuration window if no arguments are specified.
 
-/v       - Verbose Logging to console
-/config  - Show currently configured Ranges
-/add     - Adds the specified Range(s) to the List
-/remove  - Removes the specified Range(s) from the List
-/apply   - Applies List to Firewall Rules
-/clear   - Removes all AnyBlock Rules
-/list    - Lists all available Ranges
+/v       - Verbose logging to console
+/config  - Show currently configured ranges
+/add     - Adds the specified range(s) to the list
+/remove  - Removes the specified range from the list
+/apply   - Applies list to firewall rules
+/clear   - Removes all AnyBlock rules
+/list    - Lists all available ranges
 
-/add
-A range is formatted as dir:name
-- dir is the direction and can be IN,OUT,BOTH,DISABLED
+Detailed Help:
+
+/v
+Verbose logging.
+Shows verbose output in the console.
+Can substantially increase runtime.
+
+/config
+This simply lists the current configuration.
+The format is 'DIR: NAME'
+DIR is the direction and is one of IN,OUT,BOTH,DISABLED
+NAME is the fully qualified range name. Segments are separated using '-->'
+
+/add dir name
+- dir is the direction (same values as in /config)
 - name is the fully qualified node name.
 Disabled entries are not processed.
 It's not necessary to disable an entry to delete it.
 To change an existing entry, you can add it again using a different direction.
+For the format of the name parameter, see the remove help below.
 
-
-/remove
-Removing rules from the list is done by name only
+/remove name
+Removing rules from the list is done by name only.
+the 'name tree' is supplied as a space delimited list.
+To remove TOR exit nodes you would use the arguments /remove tor tor Exit
+You can only remove one entry at a time.
+To remove all entries, simply delete the 'settings.json' file
 
 /apply
 Applying the List will remove all blocked IPs that are no longer in the
-current List of Addresses.
-To get most out of this command, schedule this as a Task to be run every
-24 Hours.");
+current list of addresses.
+To get most out of this command, schedule this as a task to be run every
+24 hours.
+
+/clear
+Removes all rules from the firewall without deleting them from the settings.
+To remove them from the settings, use the /remove command.
+
+/list
+Lists all available rules.
+Be careful, this list has thousands of entries.");
         }
 
         private static void ShowConfigForm()
