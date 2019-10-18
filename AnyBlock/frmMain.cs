@@ -28,7 +28,9 @@ namespace AnyBlock
         /// </summary>
         private List<RangeEntry> CurrentRanges;
 
-        //Form initializer
+        /// <summary>
+        /// Form initializer
+        /// </summary>
         public frmMain()
         {
             InitializeComponent();
