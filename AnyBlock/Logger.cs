@@ -4,10 +4,15 @@ namespace AnyBlock
 {
     public static class Logger
     {
+#if DEBUG
+        public static bool Verbose = true;
+#else
         public static bool Verbose = false;
+#endif
 
         public static void Log(string Message)
         {
+            System.Diagnostics.Debug.WriteLine(Message, nameof(Log));
             Console.Error.WriteLine(Message);
         }
 
@@ -18,6 +23,7 @@ namespace AnyBlock
 
         public static void Debug(string Message)
         {
+            System.Diagnostics.Debug.WriteLine(Message, nameof(Debug));
             if (Verbose)
             {
                 Console.Error.WriteLine(Message);
