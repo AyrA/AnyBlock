@@ -56,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cache.cs" />
+    <Compile Include="CIDR.cs" />
     <Compile Include="Ext.cs" />
     <Compile Include="Firewall.cs" />
     <Compile Include="frmMain.cs">
