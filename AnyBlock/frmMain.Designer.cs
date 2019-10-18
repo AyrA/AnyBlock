@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmMain));
             this.tvRanges = new System.Windows.Forms.TreeView();
             this.lbRules = new System.Windows.Forms.ListBox();
             this.btnSave = new System.Windows.Forms.Button();
@@ -101,6 +102,7 @@
             this.Controls.Add(this.lbRules);
             this.Controls.Add(this.tvRanges);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "frmMain";
