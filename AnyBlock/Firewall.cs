@@ -91,7 +91,7 @@ namespace WinAPI.NET
             return Policy.Rules
                 .Cast<INetFwRule2>()
                 .Where(m => m.Name.StartsWith($"{RulePrefix}.{D}.") && m.Direction == (D == Direction.IN ? NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN : NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_OUT))
-                .SelectMany(m => m.RemoteAddresses.Split(',').Select(n => new CIDR(n)))
+                .SelectMany(m => m.RemoteAddresses.Split(',').Select(n => new CIDR(n, true)))
                 .ToArray();
         }
 
