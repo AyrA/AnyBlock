@@ -42,6 +42,13 @@ namespace AnyBlock
 #if !DEBUG
             //Handle "/v" Argument. In debug mode, it's always active
             Verbose = args.Any(m => m.ToLower() == "/v");
+#else
+            /*
+            args = "/v /export csv".Split(' ');
+            var Test = new CIDR("fe80::149c:651f:f2cc:3356%15/22", false);
+            Debug("CIDR={0} LOW={1} HIGH={2} MASK={3}",
+                Test, Test.AddressLow, Test.AddressHigh, Test.MaskIP);
+            //*/
 #endif
             args = args.Where(m => m.ToLower() != "/v").ToArray();
 
@@ -93,7 +100,7 @@ namespace AnyBlock
                                 .Select(m => new RangeSet()
                                 {
                                     Direction = m.Direction,
-                                    Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n)).ToArray()
+                                    Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
                                 })
                                 .ToArray();
                             Debug("Clearing existing firewall rules...");
@@ -146,6 +153,7 @@ namespace AnyBlock
                         else
                         {
                             Log("Range '{0}' not in current List", string.Join(" --> ", FullName));
+                            return ERR.ARGS;
                         }
                         Cache.SelectedRanges = Cached;
                         return ERR.SUCCESS;
@@ -178,11 +186,13 @@ namespace AnyBlock
                                 else
                                 {
                                     Log("Invalid Direction in {0}", Direction);
+                                    return ERR.ARGS;
                                 }
                             }
                             else
                             {
                                 Log("Name {0} is not a valid Range. Use /list to view all", string.Join(" --> ", FullName));
+                                return ERR.ARGS;
                             }
                         }
                         else
@@ -190,6 +200,59 @@ namespace AnyBlock
                             Log("No direction specified. Please specify a direction.");
                         }
                         Cache.SelectedRanges = Cached.ToArray();
+                        return ERR.SUCCESS;
+                    }
+                    if (args[0].ToLower() == "/export")
+                    {
+                        var Ranges = Cache.SelectedRanges
+                            .Select(m => new
+                            {
+                                Range = m,
+                                Addr = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
+                            })
+                            .ToArray();
+                        switch (args[1].ToLower())
+                        {
+                            case "json":
+                                var Dict = new Dictionary<string, string[]>();
+                                foreach(var R in Ranges)
+                                {
+                                    Dict[string.Join(" ",R.Range.Segments)] = R.Addr.Select(m => m.ToString()).ToArray();
+                                }
+                                Console.WriteLine(Dict.ToJson(true));
+                                break;
+                            case "csv":
+                                var Delim = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
+                                Console.WriteLine("\"name\"{0}\"start\"{0}\"end\"{0}\"cidr\"", Delim);
+                                foreach(var R in Ranges)
+                                {
+                                    foreach (var A in R.Addr)
+                                    {
+                                        Console.WriteLine("\"{1}\"{0}\"{2}\"{0}\"{3}\"{0}\"{4}\"",
+                                            Delim,
+                                            string.Join(" --> ", R.Range.Segments).Replace('"', ' '),
+                                            A.AddressLow,
+                                            A.AddressHigh,
+                                            A);
+                                    }
+                                }
+                                break;
+                            case "p2p":
+                                foreach (var R in Ranges)
+                                {
+                                    foreach (var A in R.Addr)
+                                    {
+                                        Console.WriteLine("{0}:{1}-{2}",
+                                            string.Join(" --> ", R.Range.Segments).Replace(':', ' '),
+                                            A.AddressLow,
+                                            A.AddressHigh);
+                                    }
+                                }
+                                break;
+                            default:
+                                Log($"Invalid output format: {args[1]}");
+                                return ERR.ARGS;
+                        }
                         return ERR.SUCCESS;
                     }
                 }
@@ -233,7 +296,7 @@ namespace AnyBlock
 
         private static void ShowHelp()
         {
-            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add dir name | /remove name | /apply | /list]
+            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add dir name | /remove name | /apply | /list | /export <format>]
 Blocks IP ranges in the Windows firewall
 
 Shows a graphical configuration window if no arguments are specified.
@@ -245,6 +308,7 @@ Shows a graphical configuration window if no arguments are specified.
 /apply   - Applies list to firewall rules
 /clear   - Removes all AnyBlock rules
 /list    - Lists all available ranges
+/export  - Export the currently selected rule ranges
 
 Detailed Help:
 
@@ -286,7 +350,14 @@ To remove them from the settings, use the /remove command.
 
 /list
 Lists all available rules.
-Be careful, this list has thousands of entries.");
+Be careful, this list has thousands of entries.
+
+/export {csv|p2p|json}
+Exports the currently selected rules with IP ranges in various formats:
+csv: Exports name, start-IP, end-IP, cidr in csv format (with headers)
+p2p: Peer to peer blocklist format for common P2P applications.
+json: JSON object. Range names are keys and the CIDR list the values
+");
         }
 
         private static void ShowConfigForm()
