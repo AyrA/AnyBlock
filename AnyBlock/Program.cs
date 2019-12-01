@@ -87,7 +87,7 @@ namespace AnyBlock
             {
                 if (args.Length == 1)
                 {
-                    switch(args[0].ToLower())
+                    switch (args[0].ToLower())
                     {
                         case "/apply":
                             return ApplyRules();
@@ -305,9 +305,19 @@ namespace AnyBlock
                             Console.WriteLine("\"{1}\"{0}\"{2}\"{0}\"{3}\"{0}\"{4}\"",
                                 Delim,
                                 string.Join(" --> ", R.Range.Segments).Replace('"', ' '),
-                                A.AddressLow,
-                                A.AddressHigh,
-                                A);
+                                A.AddressLow, A.AddressHigh, A);
+                        }
+                    }
+                    break;
+                case "tsv":
+                    Console.WriteLine("name\tstart\tend\tcidr");
+                    foreach (var R in Ranges)
+                    {
+                        foreach (var A in R.Addr)
+                        {
+                            Console.WriteLine("{1}\t{2}\t{3}\t{4}",
+                                string.Join(" --> ", R.Range.Segments).Replace('\t', ' '),
+                                A.AddressLow, A.AddressHigh, A);
                         }
                     }
                     break;
@@ -425,9 +435,10 @@ To remove them from the settings, use the /remove command.
 Lists all available rules.
 Be careful, this list has thousands of entries.
 
-/export {csv|p2p|json}
+/export {csv|tsv|p2p|json}
 Exports the currently selected rules with IP ranges in various formats:
 csv: Exports name, start-IP, end-IP, cidr in csv format (with headers)
+tsv: Same as csv, but uses tab to delimit fields
 p2p: Peer to peer blocklist format for common P2P applications.
 json: JSON object. Range names are keys and the CIDR list the values
 ");
