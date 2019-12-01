@@ -87,177 +87,247 @@ namespace AnyBlock
             {
                 if (args.Length == 1)
                 {
-                    if (args[0].ToLower() == "/apply")
+                    switch(args[0].ToLower())
                     {
-                        Log("Applying firewall Rules...");
-                        try
-                        {
-                            var FWRanges = Cache.SelectedRanges
-                                .Select(m => new RangeSet()
-                                {
-                                    Direction = m.Direction,
-                                    Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
-                                })
-                                .ToArray();
-                            Debug("Clearing existing firewall rules...");
-                            Firewall.ClearRules();
-                            Debug("Adding new rules...");
-                            Firewall.BlockRanges(FWRanges);
-                            Log("Blocked {0} ranges", FWRanges.SelectMany(m => m.Ranges).Count());
-                        }
-                        catch (Exception ex)
-                        {
-                            Log("Error: {0}", ex.Message);
-                            return ERR.RULE_ERROR;
-                        }
-                        return ERR.SUCCESS;
-                    }
-                    if (args[0].ToLower() == "/clear")
-                    {
-                        Log("Clearing firewall rules...");
-                        Firewall.ClearRules();
-                        return ERR.SUCCESS;
-                    }
-                    if (args[0].ToLower() == "/config")
-                    {
-                        foreach (var R in Cache.SelectedRanges)
-                        {
-                            Console.WriteLine(R);
-                        }
-                        return ERR.SUCCESS;
-                    }
-                    if (args[0].ToLower() == "/list")
-                    {
-                        foreach (var E in Cache.ValidEntries)
-                        {
-                            Console.WriteLine(E);
-                        }
-                        return ERR.SUCCESS;
+                        case "/apply":
+                            return ApplyRules();
+                        case "/clear":
+                            return ClearRules();
+                        case "/config":
+                            return PrintConfig();
+                        case "/list":
+                            return ListAvailableRanges();
                     }
                 }
                 else
                 {
-                    if (args[0].ToLower() == "/remove")
+                    switch (args[0].ToLower())
                     {
-                        var Cached = Cache.SelectedRanges;
-                        var FullName = args.Skip(1).ToArray();
-                        if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
-                        {
-                            Cached = Cached
-                                .Where(m => !m.Segments.SequenceEqual(FullName))
-                                .ToArray();
-                            Log("Range Removed: {0}", string.Join(" --> ", FullName));
-                        }
-                        else
-                        {
-                            Log("Range '{0}' not in current List", string.Join(" --> ", FullName));
-                            return ERR.ARGS;
-                        }
-                        Cache.SelectedRanges = Cached;
-                        return ERR.SUCCESS;
-                    }
-                    if (args[0].ToLower() == "/add")
-                    {
-                        var Cached = new List<RangeEntry>(Cache.SelectedRanges);
-                        var FullName = args.Skip(2).ToArray();
-                        var Direction = args.Skip(1).FirstOrDefault();
-                        if (Direction != null)
-                        {
-                            if (Cache.ValidEntry(FullName))
-                            {
-                                var R = new RangeEntry();
-                                R.Segments = FullName;
-                                if (Enum.TryParse(Direction, out R.Direction))
-                                {
-                                    if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
-                                    {
-                                        Cached = new List<RangeEntry>(Cached
-                                            .Where(m => m.Segments.SequenceEqual(FullName))
-                                            .Concat(new RangeEntry[] { R }));
-                                        Log("Updated Range: {0}", string.Join(" --> ", FullName));
-                                    }
-                                    else
-                                    {
-                                        Cached.Add(R);
-                                        Log("Added Range: {0}", string.Join(" --> ", FullName));
-                                    }
-                                }
-                                else
-                                {
-                                    Log("Invalid Direction in {0}", Direction);
-                                    return ERR.ARGS;
-                                }
-                            }
-                            else
-                            {
-                                Log("Name {0} is not a valid Range. Use /list to view all", string.Join(" --> ", FullName));
-                                return ERR.ARGS;
-                            }
-                        }
-                        else
-                        {
-                            Log("No direction specified. Please specify a direction.");
-                        }
-                        Cache.SelectedRanges = Cached.ToArray();
-                        return ERR.SUCCESS;
-                    }
-                    if (args[0].ToLower() == "/export")
-                    {
-                        var Ranges = Cache.SelectedRanges
-                            .Select(m => new
-                            {
-                                Range = m,
-                                Addr = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
-                            })
-                            .ToArray();
-                        switch (args[1].ToLower())
-                        {
-                            case "json":
-                                var Dict = new Dictionary<string, string[]>();
-                                foreach (var R in Ranges)
-                                {
-                                    Dict[string.Join(" ", R.Range.Segments)] = R.Addr.Select(m => m.ToString()).ToArray();
-                                }
-                                Console.WriteLine(Dict.ToJson(true));
-                                break;
-                            case "csv":
-                                var Delim = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
-                                Console.WriteLine("\"name\"{0}\"start\"{0}\"end\"{0}\"cidr\"", Delim);
-                                foreach (var R in Ranges)
-                                {
-                                    foreach (var A in R.Addr)
-                                    {
-                                        Console.WriteLine("\"{1}\"{0}\"{2}\"{0}\"{3}\"{0}\"{4}\"",
-                                            Delim,
-                                            string.Join(" --> ", R.Range.Segments).Replace('"', ' '),
-                                            A.AddressLow,
-                                            A.AddressHigh,
-                                            A);
-                                    }
-                                }
-                                break;
-                            case "p2p":
-                                foreach (var R in Ranges)
-                                {
-                                    foreach (var A in R.Addr)
-                                    {
-                                        Console.WriteLine("{0}:{1}-{2}",
-                                            string.Join(" --> ", R.Range.Segments).Replace(':', ' '),
-                                            A.AddressLow,
-                                            A.AddressHigh);
-                                    }
-                                }
-                                break;
-                            default:
-                                Log($"Invalid output format: {args[1]}");
-                                return ERR.ARGS;
-                        }
-                        return ERR.SUCCESS;
+                        case "/remove":
+                            return RemoveCacheItem(args.Skip(1));
+                        case "/add":
+                            return AddCacheItem(args.Skip(1).FirstOrDefault(), args.Skip(2));
+                        case "/export":
+                            return ExportConfigRanges(args[1]);
                     }
                 }
             }
             Log("Invalid Command Line Arguments. Try /?");
             return ERR.ARGS;
+        }
+
+        /// <summary>
+        /// Clears firewall rules
+        /// </summary>
+        /// <returns></returns>
+        private static int ClearRules()
+        {
+            Log("Clearing firewall rules...");
+            Firewall.ClearRules();
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Applies firewall rules
+        /// </summary>
+        private static int ApplyRules()
+        {
+            Log("Applying firewall Rules...");
+            try
+            {
+                var FWRanges = Cache.SelectedRanges
+                    .Select(m => new RangeSet()
+                    {
+                        Direction = m.Direction,
+                        Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
+                    })
+                    .ToArray();
+                Debug("Clearing existing firewall rules...");
+                Firewall.ClearRules();
+                Debug("Adding new rules...");
+                Firewall.BlockRanges(FWRanges);
+                Log("Blocked {0} ranges", FWRanges.SelectMany(m => m.Ranges).Count());
+            }
+            catch (Exception ex)
+            {
+                Log("Error: {0}", ex.Message);
+                return ERR.RULE_ERROR;
+            }
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Prints the current range configuration
+        /// </summary>
+        private static int PrintConfig()
+        {
+            foreach (var R in Cache.SelectedRanges)
+            {
+                Console.WriteLine(R);
+            }
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Lists all existing IP ranges
+        /// </summary>
+        private static int ListAvailableRanges()
+        {
+            foreach (var E in Cache.ValidEntries)
+            {
+                Console.WriteLine(E);
+            }
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Removes an item from the cache
+        /// </summary>
+        /// <param name="ItemPath">Item path</param>
+        private static int RemoveCacheItem(IEnumerable<string> ItemPath)
+        {
+            var Cached = Cache.SelectedRanges;
+            var FullName = ItemPath.ToArray();
+            if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
+            {
+                Cached = Cached
+                    .Where(m => !m.Segments.SequenceEqual(FullName))
+                    .ToArray();
+                Log("Range Removed: {0}", string.Join(" --> ", FullName));
+            }
+            else
+            {
+                Log("Range '{0}' not in current List", string.Join(" --> ", FullName));
+                return ERR.ARGS;
+            }
+            Cache.SelectedRanges = Cached;
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Adds an item to the cache
+        /// </summary>
+        /// <param name="Direction">Direction to ignore traffic from/to</param>
+        /// <param name="ItemPath">Item path</param>
+        private static int AddCacheItem(string Direction, IEnumerable<string> ItemPath)
+        {
+            var Cached = new List<RangeEntry>(Cache.SelectedRanges);
+            if (Direction != null)
+            {
+                if (ItemPath != null)
+                {
+                    var FullName = ItemPath.ToArray();
+                    if (Cache.ValidEntry(FullName))
+                    {
+                        var R = new RangeEntry();
+                        R.Segments = FullName;
+                        if (Enum.TryParse(Direction, true, out R.Direction))
+                        {
+                            if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
+                            {
+                                //Update range
+                                Cached = new List<RangeEntry>(Cached
+                                    .Where(m => m.Segments.SequenceEqual(FullName))
+                                    .Concat(new RangeEntry[] { R }));
+                                Log("Updated Range: {0}", string.Join(" --> ", FullName));
+                            }
+                            else
+                            {
+                                //Add range
+                                Cached.Add(R);
+                                Log("Added Range: {0}", string.Join(" --> ", FullName));
+                            }
+                        }
+                        else
+                        {
+                            Log("Invalid Direction: '{0}'", Direction);
+                            return ERR.ARGS;
+                        }
+                    }
+                    else
+                    {
+                        Log("Name {0} is not a valid Range. Use /list to view all", string.Join(" --> ", FullName));
+                        return ERR.ARGS;
+                    }
+                }
+                else
+                {
+                    Log("No range specified to ignore");
+                    return ERR.ARGS;
+                }
+            }
+            else
+            {
+                Log("No direction specified. Please specify a direction.");
+                return ERR.ARGS;
+            }
+            Cache.SelectedRanges = Cached.ToArray();
+            return ERR.SUCCESS;
+        }
+
+        /// <summary>
+        /// Exports currently configured ranges into a specified format
+        /// </summary>
+        /// <param name="ExportFormat">Export format</param>
+        /// <remarks>Will not read currently used firewall rules, only current configuration</remarks>
+        private static int ExportConfigRanges(string ExportFormat)
+        {
+            if (string.IsNullOrEmpty(ExportFormat))
+            {
+                Log("No export format specified");
+                return ERR.ARGS;
+            }
+            var Ranges = Cache.SelectedRanges
+                .Select(m => new
+                {
+                    Range = m,
+                    Addr = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
+                })
+                .ToArray();
+            switch (ExportFormat.ToLower())
+            {
+                case "json":
+                    var Dict = new Dictionary<string, string[]>();
+                    foreach (var R in Ranges)
+                    {
+                        Dict[string.Join(" ", R.Range.Segments)] = R.Addr.Select(m => m.ToString()).ToArray();
+                    }
+                    Console.WriteLine(Dict.ToJson(true));
+                    break;
+                case "csv":
+                    //Get delimiter of current locale
+                    var Delim = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
+                    Console.WriteLine("\"name\"{0}\"start\"{0}\"end\"{0}\"cidr\"", Delim);
+                    foreach (var R in Ranges)
+                    {
+                        foreach (var A in R.Addr)
+                        {
+                            Console.WriteLine("\"{1}\"{0}\"{2}\"{0}\"{3}\"{0}\"{4}\"",
+                                Delim,
+                                string.Join(" --> ", R.Range.Segments).Replace('"', ' '),
+                                A.AddressLow,
+                                A.AddressHigh,
+                                A);
+                        }
+                    }
+                    break;
+                case "p2p":
+                    foreach (var R in Ranges)
+                    {
+                        foreach (var A in R.Addr)
+                        {
+                            Console.WriteLine("{0}:{1}-{2}",
+                                string.Join(" --> ", R.Range.Segments).Replace(':', ' '),
+                                A.AddressLow,
+                                A.AddressHigh);
+                        }
+                    }
+                    break;
+                default:
+                    Log("Unsupported output format: '{0}'", ExportFormat);
+                    return ERR.ARGS;
+            }
+            return ERR.SUCCESS;
         }
 
         private static bool GetCache()
