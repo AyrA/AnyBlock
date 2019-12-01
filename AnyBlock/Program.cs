@@ -143,7 +143,9 @@ namespace AnyBlock
                         var FullName = args.Skip(1).ToArray();
                         if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
                         {
-                            Cached = Cached.Where(m => !m.Segments.SequenceEqual(FullName)).ToArray();
+                            Cached = Cached
+                                .Where(m => !m.Segments.SequenceEqual(FullName))
+                                .ToArray();
                             Log("Range Removed: {0}", string.Join(" --> ", FullName));
                         }
                         else
