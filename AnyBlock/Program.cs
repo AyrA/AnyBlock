@@ -315,7 +315,7 @@ namespace AnyBlock
                     {
                         foreach (var A in R.Addr)
                         {
-                            Console.WriteLine("{1}\t{2}\t{3}\t{4}",
+                            Console.WriteLine("{0}\t{1}\t{2}\t{3}",
                                 string.Join(" --> ", R.Range.Segments).Replace('\t', ' '),
                                 A.AddressLow, A.AddressHigh, A);
                         }
