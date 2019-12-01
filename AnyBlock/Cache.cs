@@ -59,6 +59,8 @@ namespace AnyBlock
 
     public static class Cache
     {
+        public const string CACHE_URL = "https://cable.ayra.ch/ip/global.json";
+
         public static readonly string CacheFile;
 
         public static readonly string SettingsFile;
@@ -145,6 +147,27 @@ namespace AnyBlock
             {
                 CacheFile = Path.Combine(Path.GetDirectoryName(P.MainModule.FileName), "cache.json");
                 SettingsFile = Path.Combine(Path.GetDirectoryName(P.MainModule.FileName), "settings.json");
+            }
+            try
+            {
+                //Set to TLS 1.3 first
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | (SecurityProtocolType)12288;
+            }
+            catch
+            {
+                try
+                {
+                    //Try TLS 1.2 as fallback
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                }
+                catch
+                {
+
+                    //All protocols except SSL3
+                    var TlsProtocols = ((SecurityProtocolType)Enum.GetValues(typeof(SecurityProtocolType)).Cast<int>().Sum()) ^ SecurityProtocolType.Ssl3;
+                    //Enable all TLS variants known to this system
+                    ServicePointManager.SecurityProtocol = TlsProtocols;
+                }
             }
         }
 
@@ -257,6 +280,7 @@ namespace AnyBlock
         {
             if (!CacheRecent)
             {
+
                 var WC = new DecompressClient();
                 if (Handler != null)
                 {
@@ -273,23 +297,68 @@ namespace AnyBlock
 
                     WC.DownloadFileCompleted += delegate (object sender, AsyncCompletedEventArgs e)
                     {
-                        long Size = -1;
-                        try
+                        if (e.Error == null)
                         {
-                            Size = CacheSize;
-                        }
-                        catch
-                        {
+                            long Size = -1;
+                            try
+                            {
+                                Size = CacheSize;
+                            }
+                            catch
+                            {
 
+                            }
+                            var Evt = new DownloadStatusEventArgs(Size, new WebException("Unable to download cache. Unknown reason"));
+                            Handler(Evt);
                         }
-                        var Evt = new DownloadStatusEventArgs(Size, Size == 0 ? new WebException("Unable to download cache") : e.Error);
-                        Handler(Evt);
+                        else
+                        {
+                            if (e.Error is WebException)
+                            {
+                                var Message = TryReadData((WebException)e.Error);
+                                if (!string.IsNullOrEmpty(Message))
+                                {
+                                    Console.Error.WriteLine("Unexpected Server Response\r\n{0}", Message);
+                                }
+                                else
+                                {
+                                    Console.Error.WriteLine("Empty server response");
+                                }
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine("No server response");
+                            }
+                            Handler(new DownloadStatusEventArgs(-1, e.Error));
+                        }
                         WC.Dispose();
                     };
                 }
+                Console.Error.WriteLine("Downloading from {0}", CACHE_URL);
                 WC.Headers.Add("User-Agent: AnyBlock/1.0 +https://github.com/AyrA/AnyBlock");
-                WC.DownloadFileAsync(new Uri("https://cable.ayra.ch/ip/global.json"), CacheFile);
+                WC.DownloadFileAsync(new Uri(CACHE_URL), CacheFile);
             }
+        }
+
+        private static string TryReadData(WebException ex)
+        {
+            if (ex.Response != null)
+            {
+                try
+                {
+                    using (var SR = new StreamReader(ex.Response.GetResponseStream()))
+                    {
+                        return SR.ReadToEnd();
+                    }
+                }
+                catch(Exception wex)
+                {
+                    Console.Error.WriteLine("Error reading error response from server");
+                    Console.Error.WriteLine("[0]: {1}",wex.GetType().Name,wex.Message);
+                    //NOOP
+                }
+            }
+            return null;
         }
 
         private static JToken[] SelectToken(IEnumerable<string> PathSegments)

@@ -42,15 +42,11 @@ namespace AnyBlock
 #if !DEBUG
             //Handle "/v" Argument. In debug mode, it's always active
             Verbose = args.Any(m => m.ToLower() == "/v");
-#else
-            /*
-            args = "/v /export csv".Split(' ');
-            var Test = new CIDR("fe80::149c:651f:f2cc:3356%15/22", false);
-            Debug("CIDR={0} LOW={1} HIGH={2} MASK={3}",
-                Test, Test.AddressLow, Test.AddressHigh, Test.MaskIP);
-            //*/
 #endif
-            args = args.Where(m => m.ToLower() != "/v").ToArray();
+            args = args
+                .Where(m => m.ToLower() != "/v")
+                //.Concat(new string[] { "/add", "IN", "asn", "OVH" })
+                .ToArray();
 
 
             if (!Cache.HasCache)
@@ -147,7 +143,7 @@ namespace AnyBlock
                         var FullName = args.Skip(1).ToArray();
                         if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
                         {
-                            Cached = Cached.Where(m => m.Segments.SequenceEqual(FullName)).ToArray();
+                            Cached = Cached.Where(m => !m.Segments.SequenceEqual(FullName)).ToArray();
                             Log("Range Removed: {0}", string.Join(" --> ", FullName));
                         }
                         else
@@ -165,9 +161,10 @@ namespace AnyBlock
                         var Direction = args.Skip(1).FirstOrDefault();
                         if (Direction != null)
                         {
-                            var R = new RangeEntry();
                             if (Cache.ValidEntry(FullName))
                             {
+                                var R = new RangeEntry();
+                                R.Segments = FullName;
                                 if (Enum.TryParse(Direction, out R.Direction))
                                 {
                                     if (Cached.Any(m => m.Segments.SequenceEqual(FullName)))
@@ -215,16 +212,16 @@ namespace AnyBlock
                         {
                             case "json":
                                 var Dict = new Dictionary<string, string[]>();
-                                foreach(var R in Ranges)
+                                foreach (var R in Ranges)
                                 {
-                                    Dict[string.Join(" ",R.Range.Segments)] = R.Addr.Select(m => m.ToString()).ToArray();
+                                    Dict[string.Join(" ", R.Range.Segments)] = R.Addr.Select(m => m.ToString()).ToArray();
                                 }
                                 Console.WriteLine(Dict.ToJson(true));
                                 break;
                             case "csv":
                                 var Delim = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
                                 Console.WriteLine("\"name\"{0}\"start\"{0}\"end\"{0}\"cidr\"", Delim);
-                                foreach(var R in Ranges)
+                                foreach (var R in Ranges)
                                 {
                                     foreach (var A in R.Addr)
                                     {
@@ -290,6 +287,10 @@ namespace AnyBlock
             while (Wait)
             {
                 System.Threading.Thread.Sleep(100);
+            }
+            if (ex != null)
+            {
+                Console.WriteLine("[{0}]: {1}", ex.GetType().Name, ex.Message);
             }
             return ex == null;
         }
