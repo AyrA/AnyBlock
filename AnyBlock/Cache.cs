@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using WinAPI.NET;
 using static AnyBlock.Logger;
 
@@ -61,9 +62,23 @@ namespace AnyBlock
     {
         public const string CACHE_URL = "https://cable.ayra.ch/ip/global.json";
 
+        private static Version _appVersion;
+
         public static readonly string CacheFile;
 
         public static readonly string SettingsFile;
+
+        public static Version AppVersion
+        {
+            get
+            {
+                if (_appVersion == null)
+                {
+                    _appVersion = Assembly.GetExecutingAssembly().GetName().Version;
+                }
+                return _appVersion;
+            }
+        }
 
         public static bool HasCache
         {
@@ -308,7 +323,7 @@ namespace AnyBlock
                             {
 
                             }
-                            var Evt = new DownloadStatusEventArgs(Size, new WebException("Unable to download cache. Unknown reason"));
+                            var Evt = new DownloadStatusEventArgs(Size, Size < 0 ? new WebException("Unable to download cache. Unknown reason") : null);
                             Handler(Evt);
                         }
                         else
@@ -335,7 +350,7 @@ namespace AnyBlock
                     };
                 }
                 Console.Error.WriteLine("Downloading from {0}", CACHE_URL);
-                WC.Headers.Add("User-Agent: AnyBlock/1.0 +https://github.com/AyrA/AnyBlock");
+                WC.Headers.Add($"User-Agent: AnyBlock/{AppVersion} +https://github.com/AyrA/AnyBlock");
                 WC.DownloadFileAsync(new Uri(CACHE_URL), CacheFile);
             }
         }
@@ -351,10 +366,10 @@ namespace AnyBlock
                         return SR.ReadToEnd();
                     }
                 }
-                catch(Exception wex)
+                catch (Exception wex)
                 {
                     Console.Error.WriteLine("Error reading error response from server");
-                    Console.Error.WriteLine("[0]: {1}",wex.GetType().Name,wex.Message);
+                    Console.Error.WriteLine("[0]: {1}", wex.GetType().Name, wex.Message);
                     //NOOP
                 }
             }

@@ -45,9 +45,12 @@ namespace AnyBlock
 #endif
             args = args
                 .Where(m => m.ToLower() != "/v")
-                //.Concat(new string[] { "/add", "IN", "asn", "OVH" })
                 .ToArray();
 
+            if (Verbose)
+            {
+                Log("Starting AnyBlock v{0}", Cache.AppVersion);
+            }
 
             if (!Cache.HasCache)
             {
