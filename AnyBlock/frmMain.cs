@@ -87,6 +87,11 @@ namespace AnyBlock
         private bool SetCategories(TreeNode Parent, JProperty Prop, string Filter)
         {
             var added = false;
+            if (!Prop.Value.HasValues)
+            {
+                Log("Node unexpectedly empty: {0}", Prop.Path);
+                return false;
+            }
             foreach (var Cat in ((JObject)Prop.Value).Properties().OrderBy(m => m.Name))
             {
                 var Name = Cat.Name;
@@ -112,6 +117,11 @@ namespace AnyBlock
         private bool SetEntries(TreeNode Base, TreeNode Parent, JProperty Cat, string Filter)
         {
             var added = false;
+            if (!Cat.Value.HasValues)
+            {
+                Log("Node unexpectedly empty: {0}", Cat.Path);
+                return false;
+            }
             foreach (var Prop in ((JObject)Cat.Value).Properties())
             {
                 var Name = Prop.Name;
