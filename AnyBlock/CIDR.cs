@@ -1,8 +1,33 @@
 ﻿using System;
 using System.Net;
+using System.Net.Sockets;
 
 namespace WinAPI.NET
 {
+    /// <summary>
+    /// IP version specifier
+    /// </summary>
+    [Flags]
+    public enum IPVersion : int
+    {
+        /// <summary>
+        /// No or invalid value
+        /// </summary>
+        None = 0,
+        /// <summary>
+        /// IPv4
+        /// </summary>
+        V4 = 1,
+        /// <summary>
+        /// IPv6
+        /// </summary>
+        V6 = 2,
+        /// <summary>
+        /// IPv4 or IPv6
+        /// </summary>
+        Any = V4 | V6
+    }
+
     /// <summary>
     /// Handles CIDR notation of IPv4 and IPv6 addresses
     /// </summary>
@@ -61,6 +86,17 @@ namespace WinAPI.NET
         { get; set; }
 
         /// <summary>
+        /// Gets the Type of address in use
+        /// </summary>
+        public IPVersion Type
+        {
+            get
+            {
+                return Address.AddressFamily == AddressFamily.InterNetwork ? IPVersion.V4 : IPVersion.V6;
+            }
+        }
+
+        /// <summary>
         /// Initializes a new Range in CIDR Notation
         /// </summary>
         /// <param name="combinedNotation">IP/Mask</param>
@@ -86,10 +122,14 @@ namespace WinAPI.NET
             {
                 throw new FormatException("CombinedNotation doesn't has a valid IP Address");
             }
+            if (tempAddr.AddressFamily != AddressFamily.InterNetwork && tempAddr.AddressFamily != AddressFamily.InterNetworkV6)
+            {
+                throw new FormatException("Supplied address is not IPv4 or IPv6");
+            }
             //If no CIDR delimiter is provided, assume fully closed mask
             if (Parts.Length == 1)
             {
-                tempMask = tempAddr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? 128 : 32;
+                tempMask = tempAddr.AddressFamily == AddressFamily.InterNetworkV6 ? 128 : 32;
             }
             else
             {
@@ -104,7 +144,7 @@ namespace WinAPI.NET
                     throw new ArgumentOutOfRangeException(nameof(combinedNotation), "CIDR Mask is outside of Bounds");
                 }
                 //Mask must not be bigger than IPv4=32 or IPv6=128
-                if (tempMask > (tempAddr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? 128 : 32))
+                if (tempMask > (tempAddr.AddressFamily == AddressFamily.InterNetworkV6 ? 128 : 32))
                 {
                     throw new ArgumentOutOfRangeException(nameof(combinedNotation), "CIDR Mask is outside of Bounds");
                 }
@@ -124,7 +164,7 @@ namespace WinAPI.NET
                 throw new ArgumentOutOfRangeException(nameof(cidrMask), "CIDR Mask is outside of Bounds");
             }
             //Mask must not be bigger than IPv4=32 or IPv6=128
-            if (cidrMask > (Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? 128 : 32))
+            if (cidrMask > (Address.AddressFamily == AddressFamily.InterNetworkV6 ? 128 : 32))
             {
                 throw new ArgumentOutOfRangeException(nameof(cidrMask), "CIDR Mask is outside of Bounds");
             }
@@ -253,7 +293,7 @@ namespace WinAPI.NET
             MaskBits = bitmask;
             Mask = cidrMask;
             //Set addresses and keep scope if applicable
-            if (ipAddr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            if (ipAddr.AddressFamily == AddressFamily.InterNetwork)
             {
                 Address = new IPAddress(bytes);
                 AddressLow = new IPAddress(low);

@@ -93,7 +93,7 @@ namespace AnyBlock
                     switch (args[0].ToLower())
                     {
                         case "/apply":
-                            return ApplyRules();
+                            return ApplyRules(IPVersion.Any);
                         case "/clear":
                             return ClearRules();
                         case "/config":
@@ -106,6 +106,9 @@ namespace AnyBlock
                 {
                     switch (args[0].ToLower())
                     {
+                        case "/apply":
+                            IPVersion v = ParseIPVersion(args.Skip(1).FirstOrDefault());
+                            return ApplyRules(v);
                         case "/remove":
                             return RemoveCacheItem(args.Skip(1));
                         case "/add":
@@ -117,6 +120,32 @@ namespace AnyBlock
             }
             Log("Invalid Command Line Arguments. Try /?");
             return ERR.ARGS;
+        }
+
+        /// <summary>
+        /// Parses the string "v4" or "v6" into an <see cref="IPVersion"/>
+        /// </summary>
+        /// <param name="Arg">IP version string</param>
+        /// <returns>
+        /// <see cref="IPVersion"/> value.
+        /// <see cref="IPVersion.Any"/> if no argument supplied or empty.
+        /// <see cref="IPVersion.None"/> if argument supplied and invalid.
+        /// </returns>
+        private static IPVersion ParseIPVersion(string Arg)
+        {
+            if (string.IsNullOrEmpty(Arg))
+            {
+                return IPVersion.Any;
+            }
+            if (Arg.ToLower() == "v4")
+            {
+                return IPVersion.V4;
+            }
+            if (Arg.ToLower() == "v6")
+            {
+                return IPVersion.V6;
+            }
+            return IPVersion.None;
         }
 
         /// <summary>
@@ -133,7 +162,7 @@ namespace AnyBlock
         /// <summary>
         /// Applies firewall rules
         /// </summary>
-        private static int ApplyRules()
+        private static int ApplyRules(IPVersion Version)
         {
             Log("Applying firewall Rules...");
             try
@@ -142,14 +171,19 @@ namespace AnyBlock
                     .Select(m => new RangeSet()
                     {
                         Direction = m.Direction,
-                        Ranges = Cache.GetAddresses(m).Select(n => new CIDR(n, true)).ToArray()
+                        Ranges = Cache
+                            .GetAddresses(m)
+                            .Select(n => new CIDR(n, true))
+                            .Where(n => Version.HasFlag(n.Type))
+                            .ToArray()
                     })
+                    .Where(m => m.Ranges.Length > 0)
                     .ToArray();
                 Debug("Clearing existing firewall rules...");
-                Firewall.ClearRules();
+                Debug("Removed {0} rules...", Firewall.ClearRules());
                 Debug("Adding new rules...");
                 Firewall.BlockRanges(FWRanges);
-                Log("Blocked {0} ranges", FWRanges.SelectMany(m => m.Ranges).Count());
+                Log("Blocked {0} ranges in {1} rules", FWRanges.SelectMany(m => m.Ranges).Count(), FWRanges.Length);
             }
             catch (Exception ex)
             {
@@ -382,7 +416,7 @@ namespace AnyBlock
 
         private static void ShowHelp()
         {
-            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add dir name | /remove name | /apply | /list | /export <format>]
+            Console.Error.WriteLine(@"AnyBlock.exe [/v] [/clear | /config | /add dir name | /remove name | /apply [v{4|6}]| /list | /export <format>]
 Blocks IP ranges in the Windows firewall
 
 Shows a graphical configuration window if no arguments are specified.
@@ -424,11 +458,14 @@ To remove TOR exit nodes you would use the arguments /remove tor tor Exit
 You can only remove one entry at a time.
 To remove all entries, simply delete the 'settings.json' file
 
-/apply
+/apply [v{4|6}]
 Applying the List will remove all blocked IPs that are no longer in the
 current list of addresses.
 To get most out of this command, schedule this as a task to be run every
 24 hours.
+You can optionally specify to only add IPv4 or IPv6 addresses.
+This will reduce the number of rules drastically
+if you're only reachable via one protocol.
 
 /clear
 Removes all rules from the firewall without deleting them from the settings.

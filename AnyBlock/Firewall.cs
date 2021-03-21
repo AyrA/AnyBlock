@@ -58,7 +58,7 @@ namespace WinAPI.NET
         /// <summary>
         /// Removes all rules with the current prefix
         /// </summary>
-        public static void ClearRules()
+        public static int ClearRules()
         {
             var Policy = GetPolicy();
             var Rules = Policy.Rules
@@ -70,6 +70,7 @@ namespace WinAPI.NET
             {
                 Policy.Rules.Remove(Rule);
             }
+            return Rules.Length;
         }
 
         /// <summary>
